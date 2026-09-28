@@ -1,0 +1,7 @@
+{
+  "icons": "font",
+  "mode": "quota",
+  "modes": {},
+  "snapshot_max_age": 120,
+  "quota_max_age": 900
+}

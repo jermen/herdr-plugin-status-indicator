@@ -1,0 +1,33 @@
+id = "jermen.status-indicator"
+name = "Agent Status Indicator"
+version = "0.1.0"
+min_herdr_version = "0.9.1"
+description = "Two-line agent state, stable titles, usage and reported subagents."
+platforms = ["linux", "macos"]
+
+[[startup]]
+command = ["python3", "indicator.py", "start"]
+
+[[events]]
+on = "pane.agent_detected"
+command = ["python3", "indicator.py", "start"]
+
+[[actions]]
+id = "start"
+title = "Start status indicator"
+command = ["python3", "indicator.py", "start"]
+
+[[actions]]
+id = "stop"
+title = "Stop status indicator"
+command = ["python3", "indicator.py", "stop"]
+
+[[actions]]
+id = "refresh"
+title = "Refresh status indicator"
+command = ["python3", "indicator.py", "refresh"]
+
+[[actions]]
+id = "clear"
+title = "Clear indicator metadata"
+command = ["python3", "indicator.py", "clear"]

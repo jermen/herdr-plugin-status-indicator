@@ -1,0 +1,16 @@
+# >>> status-indicator sidebar block
+[ui.sidebar.agents]
+row_gap = 0
+rows = [
+  [{ token = "$si_working", fg = "#c78a1f", bold = true }, { token = "$si_blocked", fg = "#c04a4a" }, { token = "$si_done", fg = "#4c9a5a" }, { token = "$si_idle" }, { token = "$si_unknown", fg = "#907aa9" }],
+  [
+    "$si_h_normal", { token = "$si_h_yellow", fg = "#c78a1f" }, { token = "$si_h_red", fg = "#c04a4a" },
+    { token = "$si_h_stale", fg = "#c04a4a" },
+    "$si_w_normal", { token = "$si_w_yellow", fg = "#c78a1f" }, { token = "$si_w_red", fg = "#c04a4a" },
+    { token = "$si_w_stale", fg = "#c04a4a" },
+    "$si_usage", { token = "$si_usage_stale", fg = "#c04a4a" },
+    "$si_ctx_normal", { token = "$si_ctx_yellow", fg = "#c78a1f" }, { token = "$si_ctx_red", fg = "#c04a4a" },
+    "$si_notes"
+  ]
+]
+# <<< status-indicator sidebar block
