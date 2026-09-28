@@ -50,6 +50,29 @@ class UsageTests(unittest.TestCase):
                 self.assertEqual(app.details(pane(agent=agent), data, {}, NOW),
                                  "h -- / w -- / ctx --")
 
+    def test_api_key_claude_shows_session_cost_instead_of_quota(self):
+        data = usage()
+        data["panes"][0]["session_key"] = "claude:session-a"
+        session = data["sessions"][0]
+        session["key"] = "claude:session-a"
+        current = session["current"]
+        limits = current["limits"]
+        current.update(limits=[], session_estimated_cost_usd=2.4512)
+        p = pane(agent="claude")
+        self.assertEqual(app.details(p, data, {}, NOW), "$2.45 / ctx 14 %")
+        self.assertEqual(app.details(p, data, {"mode": "estimated"}, NOW), "d -- / w -- / m -- / ctx 14 %")
+        # No cost before the first response, when a subscription has no quota yet either.
+        current["session_estimated_cost_usd"] = 0
+        self.assertEqual(app.details(p, data, {}, NOW), "h -- / w -- / ctx 14 %")
+        # An idle subscription whose windows expired keeps its quota columns.
+        current["session_estimated_cost_usd"] = 81
+        session["periods"]["last_31_days"] = {"quota_samples": [
+            {"at": NOW - 86400, "windows": [{"name": "five_hour", "used_percent": 10}]},
+            {"at": NOW, "windows": []}]}
+        self.assertEqual(app.details(p, data, {}, NOW), "h -- / w -- / ctx 14 %")
+        current["limits"] = limits
+        self.assertEqual(app.details(p, data, {}, NOW), "h 7 % / w 55 % / ctx 14 %")
+
     def test_auto_is_an_explicit_spending_fallback(self):
         data = usage()
         config = {"mode": "auto"}
@@ -293,6 +316,17 @@ class UsageColorTests(unittest.TestCase):
         tokens = self.render(data, pane(tokens={"subagents_running": 2}), {"mode": "estimated"})
         self.assertEqual(self.visible(tokens), [("d ~$99.00 / w -- / m --", None),
             ("ctx 90 %", "#c04a4a"), ("usage catching_up / 2 subagents", None)])
+
+    def test_api_key_session_cost_is_neutral_and_replaces_quota_fields(self):
+        data = usage()
+        data["panes"][0]["session_key"] = "claude:session-a"
+        session = data["sessions"][0]
+        session["key"] = "claude:session-a"
+        session["current"].update(limits=[], session_estimated_cost_usd="12.5")
+        session["current"]["context"]["used_percent"] = 90
+        tokens = self.render(data, pane(agent="claude"))
+        self.assertEqual(self.visible(tokens), [("$12.50", None), ("ctx 90 %", "#c04a4a")])
+        self.assertEqual(tokens["si_detail"], "$12.50 / ctx 90 %")
 
     def test_additional_quota_windows_and_staleness_keep_their_labels(self):
         data = usage()
