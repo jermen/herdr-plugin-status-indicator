@@ -1,8 +1,8 @@
 # Herdr Agent Status Indicator
 
-[DMDOX-317](https://dmdox.atlassian.net/browse/DMDOX-317): two rows for every
-agent, using Radar's icon font and state colours. Python 3.11+, Linux/macOS,
-Herdr 0.9.1+. No pip/npm dependencies, model calls, agent hooks or transcript reads.
+Two rows for every agent in the Herdr sidebar, using Radar's icon font and state
+colours. Python 3.11+, Linux/macOS, Herdr 0.9.1+. No pip/npm dependencies, model
+calls, agent hooks or transcript reads.
 
 The first row shows the agent logo, lifecycle mark and that pane's title:
 an animated spinner for working, red question mark for waiting, green check for
@@ -12,7 +12,7 @@ label or stripped terminal title, never the tab label that changes with focus.
 An actual title rename is reflected. No pane, tab or workspace is renamed.
 
 The second row consumes the atomic schema-v1 snapshot from
-[`jermen.agent-usage`](https://ci.services.dmdox.com/jermen/herdr-plugin-agent-usage):
+[`jermen.agent-usage`](https://github.com/jermen/herdr-plugin-agent-usage):
 
 ```text
 h 7 % · w 55 % · ctx 14 % · 2 subagents
@@ -55,14 +55,29 @@ computer running the Herdr UI.** With Herdr's SSH connection these are different
 machines. A successful server reload or metadata check does not prove the client
 is rendering the custom layout.
 
-Keep a complete checkout at a stable location. On the **UI computer**:
+On the **server running the agents** (with a local UI, that is the same computer):
+
+```sh
+herdr plugin install jermen/herdr-plugin-agent-usage --yes   # the data source
+herdr plugin action invoke configure --plugin jermen.agent-usage
+herdr plugin install jermen/herdr-plugin-status-indicator --yes
+herdr plugin action invoke configure --plugin jermen.status-indicator
+```
+
+`configure` runs `install.py --apply --no-link` inside the installed checkout:
+the server installation below without linking, because `herdr plugin install`
+already registered the plugin. It needs a running Herdr server. Reinstalling
+with `herdr plugin install` updates the checkout in place.
+
+On a separate **UI computer**, clone this repository to a stable location and run:
 
 ```sh
 ./install.sh --dry-run  # preview, no writes
 ./install.sh            # client mode: back up config, install sidebar and font
 ```
 
-On the **server running the agents**, from inside its Herdr session:
+For development, link a clone instead: `herdr plugin uninstall
+jermen.status-indicator`, then from the clone, inside its Herdr session:
 
 ```sh
 ./install.sh --server --replace-radar --dry-run
