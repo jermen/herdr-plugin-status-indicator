@@ -18,6 +18,11 @@ title = "Start status indicator"
 command = ["python3", "indicator.py", "start"]
 
 [[actions]]
+id = "configure"
+title = "Install sidebar, font and display mode, then start"
+command = ["python3", "install.py", "--apply", "--no-link"]
+
+[[actions]]
 id = "stop"
 title = "Stop status indicator"
 command = ["python3", "indicator.py", "stop"]

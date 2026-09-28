@@ -167,7 +167,7 @@ def apply_client(path, before, after):
     print("Other terminals: map those codepoint ranges to Herdr Agent Icons Max, then reopen the terminal if needed.")
 
 
-def apply(config_path, before, after, replace_radar, display_mode="quota"):
+def apply(config_path, before, after, replace_radar, display_mode="quota", link=True):
     from indicator import call
 
     plugin_config, plugin_before, plugin_after = display_config(config_path, display_mode)
@@ -213,7 +213,9 @@ def apply(config_path, before, after, replace_radar, display_mode="quota"):
             plugin_config.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             atomic(plugin_config, plugin_after)
             plugin_written = True
-        run("herdr", "plugin", "link", str(ROOT))
+        # An installed plugin (`herdr plugin install`) is already registered.
+        if link:
+            run("herdr", "plugin", "link", str(ROOT))
         run("herdr", "plugin", "enable", PLUGIN)
         atomic(config_path, after)
         run("herdr", "server", "reload-config")
@@ -288,11 +290,13 @@ def main():
     parser.add_argument("--config", type=Path, help="Explicit Herdr config file")
     parser.add_argument("--replace-radar", action="store_true")
     parser.add_argument("--rollback", type=Path)
+    parser.add_argument("--no-link", action="store_true",
+                        help="Server install without linking this checkout (plugin installed by `herdr plugin install`)")
     parser.add_argument("--display-mode", choices=("quota", "auto", "estimated", "billed"),
                         help="Server display mode, including existing configs (default: quota)")
     args = parser.parse_args()
-    if args.display_mode and (args.client or args.rollback):
-        parser.error("--display-mode requires a server install, not --client or --rollback")
+    if (args.display_mode or args.no_link) and (args.client or args.rollback):
+        parser.error("--display-mode and --no-link require a server install, not --client or --rollback")
     if args.rollback:
         rollback(args.rollback, args.client)
         return
@@ -306,7 +310,7 @@ def main():
             apply_client(path, before, after)
         else:
             os.environ["HERDR_CONFIG_PATH"] = str(path)
-            apply(path, before, after, args.replace_radar, args.display_mode or "quota")
+            apply(path, before, after, args.replace_radar, args.display_mode or "quota", link=not args.no_link)
     else:
         print("".join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile=str(path), tofile="status-indicator candidate")), end="")
         if not args.client:

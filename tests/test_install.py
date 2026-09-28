@@ -204,6 +204,16 @@ class ServerInstallTests(unittest.TestCase):
         install.rollback(backup)
         self.assertFalse(self.plugin.exists())
 
+    def test_installed_plugin_is_configured_without_linking(self):
+        install.rollback(self.apply())
+        self.assertIn(("herdr", "plugin", "link", str(install.ROOT)), [c.args for c in self.run.call_args_list])
+        self.run.reset_mock()
+        self.apply(link=False)
+        commands = [c.args for c in self.run.call_args_list]
+        self.assertNotIn("link", [c[2] for c in commands if c[:2] == ("herdr", "plugin")])
+        self.assertIn(("herdr", "plugin", "enable", install.PLUGIN), commands)
+        self.assertIn(("herdr", "plugin", "action", "invoke", "start", "--plugin", install.PLUGIN), commands)
+
     def test_explicit_modes_override_installer_default(self):
         for mode in ("auto", "estimated", "billed"):
             backup = self.apply(display_mode=mode)
