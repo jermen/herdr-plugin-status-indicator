@@ -76,6 +76,21 @@ def quota_label(window):
     return clean(name) or "quota"
 
 
+def token_billed(session, current):
+    """Claude reports rate limits only for subscribers, after the first response;
+    a session with its own cost estimate and no quota sample pays per token."""
+    try:
+        cost = Decimal(str(current.get("session_estimated_cost_usd")))
+    except InvalidOperation:
+        return False
+    if not cost.is_finite() or cost <= 0 or current.get("limits"):
+        return False
+    # Claude drops expired windows, so an idle subscription reports none either;
+    # its earlier samples keep it in quota mode.
+    samples = session.get("periods", {}).get("last_31_days", {}).get("quota_samples") or []
+    return not any(isinstance(s, dict) and s.get("windows") for s in samples)
+
+
 def subagents(pane):
     # Optional integration contract: a count, never guessed from sibling panes.
     value = pane.get("tokens", {}).get("subagents_running")
@@ -113,7 +128,9 @@ def detail_parts(pane, snapshot, config, now):
         "transcript_error": "transcript read error",
     }.get(collection, "usage " + clean(collection or "unavailable"))
     note_shown = False
-    if mode == "quota" or (mode == "auto" and limits):
+    if mode == "quota" and token_billed(session, current):
+        parts.append(("usage", money(current["session_estimated_cost_usd"]), None))
+    elif mode == "quota" or (mode == "auto" and limits):
         windows = {quota_label(w): w for w in limits if isinstance(w, dict)}
         observed = current.get("metric_observed_at", {}).get("limits")
         stale = limits and (not observed or now - stamp(observed) > config.get("quota_max_age", 900))

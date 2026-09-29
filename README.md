@@ -17,12 +17,18 @@ The second row consumes the atomic schema-v1 snapshot from
 ```text
 h 7 % · w 55 % · ctx 14 % · 2 subagents
 h -- · w -- · ctx 28 %
+$2.45 · ctx 14 %
 ```
 
 Quota mode is the default for both local and remote sessions. The same `h / w / ctx`
-fields remain visible when provider quota is unavailable, including API-key
-sessions; missing quotas show `--` instead of switching to spending. Estimated
-spending (`d ~$15.00 / w ~$89.00 / m ~$622.00`) remains an explicit mode.
+fields remain visible when provider quota is unavailable; missing quotas show `--`
+instead of switching to spending. The exception is Claude paying per token (API
+key): Claude reports rate limits only to Pro/Max subscribers, so a session with
+Claude's own cost estimate and no quota sample in the last 31 days shows that
+session's estimated spend in USD instead, like `$2.45`. It appears after the first
+response and needs agent-usage's Claude statusLine wrapper. An idle subscription
+whose windows expired keeps `h -- · w --`. Estimated spending
+(`d ~$15.00 / w ~$89.00 / m ~$622.00`) remains an explicit mode.
 
 Quota percentages are **used**, not remaining. `h` denotes a five-hour provider
 window, `w` its weekly window. Other provider windows retain their own labels.
@@ -33,7 +39,8 @@ Missing or expired values stay neutral. Spending and status notes stay neutral.
 Spending uses `d` for today in the collector's timezone, `w` for rolling seven
 days and `m` for rolling 31 days. The collector does not provide hourly spending.
 `~$` means API-equivalent estimated token value, not a subscription bill; `*`
-attached to a cost means partial pricing. Billed mode displays only explicitly imported session
+attached to a cost means partial pricing. A per-token session's `$` amount is
+Claude's `cost.total_cost_usd`, computed at list price, which can differ from the invoice. Billed mode displays only explicitly imported session
 charges, labelled `reported`, never organization totals or a fallback estimate.
 
 Missing values are `--`, never zero. Expired quota windows are unavailable.
