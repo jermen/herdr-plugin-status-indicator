@@ -4,6 +4,10 @@ Two rows for every agent in the Herdr sidebar, using Radar's icon font and state
 colours. Python 3.11+, Linux/macOS, Herdr 0.9.1+. No pip/npm dependencies, model
 calls, agent hooks or transcript reads.
 
+![Herdr sidebar with four agents: blocked, done, working with two subagents and idle, each with its quota and context row](docs/sidebar.gif)
+
+*A demo session with stand-in agents; the usage rows come from the real agent-usage collector.*
+
 The first row shows the agent logo, lifecycle mark and that pane's title:
 an animated spinner for working, red question mark for waiting, green check for
 done, and an idle/unknown ring. Questions remain until work resumes; completion
