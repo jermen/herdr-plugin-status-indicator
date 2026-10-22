@@ -289,6 +289,17 @@ class ServerInstallTests(unittest.TestCase):
         self.assertEqual(self.plugin.read_text(), installed_plugin)
 
 
+class FontTests(unittest.TestCase):
+    def test_older_font_is_replaced(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(install, "font_directory", return_value=Path(tmp)), \
+                patch.object(install.shutil, "which", return_value=None):
+            font = Path(tmp) / "HerdrAgentIconsMax-Regular.ttf"
+            font.write_bytes(b"older font without the Lumo glyph")
+            install.install_font()
+            self.assertEqual(font.read_bytes(), (install.ROOT / "assets/HerdrAgentIconsMax-Regular.ttf").read_bytes())
+            self.assertEqual([p.name for p in Path(tmp).iterdir()], [font.name])
+
+
 class PlatformPathTests(unittest.TestCase):
     def test_mac_font_path(self):
         with patch.object(install.sys, "platform", "darwin"), patch.object(install.Path, "home", return_value=Path("/fake/user")):

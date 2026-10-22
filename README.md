@@ -135,7 +135,7 @@ On the computer running the UI:
 1. Run `./install.sh` from the complete checkout. It installs the sidebar and
    user font with a config backup. Use `--replace-radar` if that config still has
    Radar's managed sidebar. It refuses unowned agent rows instead of deleting
-   them. Existing font files are preserved.
+   them. An older copy of the font is replaced.
 2. Run `herdr --help` there if you need to check its local config path. Defaults are
    `~/.config/herdr/config.toml` on Linux/macOS and `%APPDATA%\herdr\config.toml`
    on Windows. Back up that file before editing.
@@ -165,9 +165,9 @@ See the [Herdr 0.9.1 configuration documentation](https://github.com/herdrdev/he
 for the client/server split. Metadata validation and a healthy watcher establish
 only the server side; visual confirmation must happen in the actual UI.
 
-The font is copied to the user's font directory only if it is absent. On this
+The font is copied to the user's font directory, replacing an older copy. On this
 computer Radar's terminal font mapping can be reused if already present. For a new terminal,
-configure fallback ranges `U+E1A0-U+E1B6,U+E1C0-U+E1C5` to
+configure fallback ranges `U+E1A0-U+E1B7,U+E1C0-U+E1C5` to
 `Herdr Agent Icons Max`; terminals may need a new window to discover the font.
 Set `"icons": "text"` for a portable agent-name/Unicode fallback.
 

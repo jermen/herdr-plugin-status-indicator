@@ -26,6 +26,10 @@ TOKENS = ["si_" + state for state in STATES] + ["si_detail", *DETAIL_TOKENS]
 # Herdr Radar 1.3.5 / herdr-icon-agent-ui glyph map; see THIRD_PARTY_NOTICES.md.
 VENDORS = "claude codex opencode omp cline mastracode kimi kilo maki pi hermes cursor copilot deepseek gemini gpt qwen grok agy kiro amp devin qodercli".split()
 LOGOS = {name: chr(0xE1A0 + n) for n, name in enumerate(VENDORS)}
+# Lumo Code isn't in Radar's map: tools/lumo_icon.py adds its cat in the next free slot.
+LOGOS["lumo"] = ""
+# Lumo titles its terminal "<state glyph> Lumo · <session>"; the row has its own logo and mark.
+LUMO_TITLE = re.compile(r"^(?:\S+ )?Lumo · ")
 MARKS = {"done": "\ue1c0", "blocked": "\ue1c1", "idle": "\ue1c2", "unknown": "\ue1c3"}
 TEXT_MARKS = {"done": "✓", "blocked": "?", "idle": "○", "unknown": "◌"}
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -100,6 +104,17 @@ def subagents(pane):
     return None
 
 
+def session_id(pane):
+    """The pane's session: Herdr's binding, or for Lumo Code, which Herdr doesn't bind
+    (it binds sessions only for agents it supports natively), the ID Lumo puts on the pane."""
+    identity = pane.get("agent_session") or {}
+    if identity.get("kind") == "id" and identity.get("value"):
+        return identity["value"]
+    if pane.get("agent") == "lumo":
+        return (pane.get("tokens") or {}).get("lumo_session") or None
+    return None
+
+
 def detail_parts(pane, snapshot, config, now):
     """Ordered (field, text, raw percentage) values for plain and styled layouts."""
     children = subagents(pane)
@@ -110,8 +125,8 @@ def detail_parts(pane, snapshot, config, now):
     if age > config.get("snapshot_max_age", 120) or age < -60:
         return [("usage", "usage stale", None)] + suffix
     binding = next((p for p in snapshot.get("panes", []) if p.get("pane_id") == pane["pane_id"]), None)
-    identity = pane.get("agent_session") or {}
-    key = f"{pane['agent']}:{identity.get('value')}" if identity.get("kind") == "id" else None
+    sid = session_id(pane)
+    key = f"{pane['agent']}:{sid}" if sid else None
     if not binding or not key or binding.get("session_key") != key:
         return [("usage", "usage unavailable", None)] + suffix
     session = next((s for s in snapshot.get("sessions", []) if s.get("key") == key), None)
@@ -211,7 +226,8 @@ class Renderer:
             if not pane.get("agent"):
                 continue
             pid = pane["pane_id"]
-            identity = (pane.get("agent_session") or {}).get("value") or pane.get("terminal_id")
+            identity = ((pane.get("agent_session") or {}).get("value") or session_id(pane)
+                        or pane.get("terminal_id"))
             previous = self.history.get(pid, {})
             if previous.get("identity") != identity:
                 previous = {}
@@ -223,6 +239,8 @@ class Renderer:
             if state == "idle" and previous.get("state") == "done" and not pane.get("focused"):
                 state = "done"
             title = clean(pane.get("label") or pane.get("terminal_title_stripped"))
+            if pane["agent"] == "lumo":
+                title = LUMO_TITLE.sub("", title)
             title = title or previous.get("title") or clean(pane["agent"])
             self.history[pid] = {"identity": identity, "state": state, "title": title}
             font = self.config.get("icons", "text") == "font"
