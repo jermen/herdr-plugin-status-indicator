@@ -63,12 +63,12 @@ def digest(text):
     return hashlib.sha256(text.encode()).hexdigest()
 
 
-def atomic(path, text):
+def atomic(path, data):
     fd, name = tempfile.mkstemp(prefix=path.name + ".status-indicator.", dir=path.parent)
     temp = Path(name)
     try:
-        with os.fdopen(fd, "w") as stream:
-            stream.write(text)
+        with os.fdopen(fd, "wb" if isinstance(data, bytes) else "w") as stream:
+            stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
         if path.exists():
@@ -119,8 +119,11 @@ def install_font():
     directory = font_directory()
     directory.mkdir(parents=True, exist_ok=True)
     font = directory / "HerdrAgentIconsMax-Regular.ttf"
-    if not font.exists():
-        shutil.copyfile(ROOT / "assets/HerdrAgentIconsMax-Regular.ttf", font)
+    bundled = (ROOT / "assets/HerdrAgentIconsMax-Regular.ttf").read_bytes()
+    # Replace an older copy too (Radar's, or ours before a glyph was added): a missing
+    # glyph shows as a box. A temporary file and rename never leave a half-written font.
+    if not font.exists() or font.read_bytes() != bundled:
+        atomic(font, bundled)
     if sys.platform == "win32":
         import winreg
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows NT\CurrentVersion\Fonts") as key:
@@ -161,9 +164,9 @@ def apply_client(path, before, after):
     print("No plugin daemon was installed or started on this computer.")
     print("In Herdr's global menu, select 'reload config'.")
     print("If icons show as boxes, configure your terminal's fallback font:")
-    print('  Ghostty: font-codepoint-map = U+E1A0-U+E1B6="Herdr Agent Icons Max"')
+    print('  Ghostty: font-codepoint-map = U+E1A0-U+E1B7="Herdr Agent Icons Max"')
     print('           font-codepoint-map = U+E1C0-U+E1C5="Herdr Agent Icons Max"')
-    print('  Kitty: symbol_map U+E1A0-U+E1B6,U+E1C0-U+E1C5 Herdr Agent Icons Max')
+    print('  Kitty: symbol_map U+E1A0-U+E1B7,U+E1C0-U+E1C5 Herdr Agent Icons Max')
     print("Other terminals: map those codepoint ranges to Herdr Agent Icons Max, then reopen the terminal if needed.")
 
 
