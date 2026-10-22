@@ -23,3 +23,6 @@ Cursor, Copilot, DeepSeek, Gemini, GPT, Qwen, Grok, Antigravity and Kiro are
 third-party product marks. Several SVG sources were supplied by
 [lobehub/lobe-icons](https://github.com/lobehub/lobe-icons) (MIT).
 See Radar's upstream third-party notices for the full source attribution table.
+
+The Lumo Code glyph (U+E1B7) was added by `tools/lumo_icon.py` from Lumo Code's
+cat logo; Lumo is a Proton AG mark.

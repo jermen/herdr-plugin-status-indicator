@@ -26,6 +26,10 @@ TOKENS = ["si_" + state for state in STATES] + ["si_detail", *DETAIL_TOKENS]
 # Herdr Radar 1.3.5 / herdr-icon-agent-ui glyph map; see THIRD_PARTY_NOTICES.md.
 VENDORS = "claude codex opencode omp cline mastracode kimi kilo maki pi hermes cursor copilot deepseek gemini gpt qwen grok agy kiro amp devin qodercli".split()
 LOGOS = {name: chr(0xE1A0 + n) for n, name in enumerate(VENDORS)}
+# Lumo Code isn't in Radar's map: tools/lumo_icon.py adds its cat in the next free slot.
+LOGOS["lumo"] = ""
+# Lumo titles its terminal "<state glyph> Lumo · <session>"; the row has its own logo and mark.
+LUMO_TITLE = re.compile(r"^(?:\S+ )?Lumo · ")
 MARKS = {"done": "\ue1c0", "blocked": "\ue1c1", "idle": "\ue1c2", "unknown": "\ue1c3"}
 TEXT_MARKS = {"done": "✓", "blocked": "?", "idle": "○", "unknown": "◌"}
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -235,6 +239,8 @@ class Renderer:
             if state == "idle" and previous.get("state") == "done" and not pane.get("focused"):
                 state = "done"
             title = clean(pane.get("label") or pane.get("terminal_title_stripped"))
+            if pane["agent"] == "lumo":
+                title = LUMO_TITLE.sub("", title)
             title = title or previous.get("title") or clean(pane["agent"])
             self.history[pid] = {"identity": identity, "state": state, "title": title}
             font = self.config.get("icons", "text") == "font"

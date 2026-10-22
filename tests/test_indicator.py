@@ -256,6 +256,13 @@ class RenderTests(unittest.TestCase):
         self.assertIn("Pinned", self.render(pane(terminal_title_stripped=""))["si_working"])
         self.assertNotIn("Pinned", self.render(pane(terminal_title_stripped="", agent_session={"value":"new"}))["si_working"])
 
+    def test_lumo_row_has_its_logo_without_its_title_prefix(self):
+        for title in ("✦ Lumo · taiku.cz", "✺ Lumo · taiku.cz", "Lumo · taiku.cz"):
+            row = self.render(pane(agent="lumo", agent_status="idle", terminal_title_stripped=title))["si_idle"]
+            self.assertEqual(row, f"{app.LOGOS['lumo']} {app.MARKS['idle']} taiku.cz")
+        row = self.render(pane(terminal_title_stripped="✦ Lumo · taiku.cz"))["si_working"]
+        self.assertTrue(row.endswith("✦ Lumo · taiku.cz"))
+
     def test_publish_preserves_unowned_metadata_and_avoids_rewrites(self):
         p = pane()
         row = self.render(p)
