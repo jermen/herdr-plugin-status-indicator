@@ -100,6 +100,17 @@ def subagents(pane):
     return None
 
 
+def session_id(pane):
+    """The pane's session: Herdr's binding, or for Lumo Code, which Herdr doesn't bind
+    (it binds sessions only for agents it supports natively), the ID Lumo puts on the pane."""
+    identity = pane.get("agent_session") or {}
+    if identity.get("kind") == "id" and identity.get("value"):
+        return identity["value"]
+    if pane.get("agent") == "lumo":
+        return (pane.get("tokens") or {}).get("lumo_session") or None
+    return None
+
+
 def detail_parts(pane, snapshot, config, now):
     """Ordered (field, text, raw percentage) values for plain and styled layouts."""
     children = subagents(pane)
@@ -110,8 +121,8 @@ def detail_parts(pane, snapshot, config, now):
     if age > config.get("snapshot_max_age", 120) or age < -60:
         return [("usage", "usage stale", None)] + suffix
     binding = next((p for p in snapshot.get("panes", []) if p.get("pane_id") == pane["pane_id"]), None)
-    identity = pane.get("agent_session") or {}
-    key = f"{pane['agent']}:{identity.get('value')}" if identity.get("kind") == "id" else None
+    sid = session_id(pane)
+    key = f"{pane['agent']}:{sid}" if sid else None
     if not binding or not key or binding.get("session_key") != key:
         return [("usage", "usage unavailable", None)] + suffix
     session = next((s for s in snapshot.get("sessions", []) if s.get("key") == key), None)
@@ -211,7 +222,8 @@ class Renderer:
             if not pane.get("agent"):
                 continue
             pid = pane["pane_id"]
-            identity = (pane.get("agent_session") or {}).get("value") or pane.get("terminal_id")
+            identity = ((pane.get("agent_session") or {}).get("value") or session_id(pane)
+                        or pane.get("terminal_id"))
             previous = self.history.get(pid, {})
             if previous.get("identity") != identity:
                 previous = {}

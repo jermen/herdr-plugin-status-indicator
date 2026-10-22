@@ -109,6 +109,22 @@ class UsageTests(unittest.TestCase):
         for p in [pane(agent_session=None), pane(pane_id="w2:p1"), pane(agent="claude")]:
             self.assertEqual(app.details(p, usage(), {}, NOW), "usage unavailable")
 
+    def test_lumo_session_comes_from_its_pane_metadata(self):
+        data = usage()
+        data["panes"][0]["session_key"] = "lumo:session-a"
+        session = data["sessions"][0]
+        session["key"] = "lumo:session-a"
+        session["current"].pop("limits")
+        # Herdr doesn't bind Lumo Code's session; Lumo puts it on the pane as a token.
+        p = pane(agent="lumo", agent_session=None, tokens={"lumo_session": "session-a"})
+        self.assertEqual(app.details(p, data, {}, NOW), "h -- / w -- / ctx 14 %")
+        for other in ({}, {"lumo_session": "session-b"}):
+            self.assertEqual(app.details(pane(agent="lumo", agent_session=None, tokens=other),
+                                         data, {}, NOW), "usage unavailable")
+        # Only for Lumo: another agent's pane token isn't a session.
+        codex = pane(agent_session=None, tokens={"lumo_session": "session-a"})
+        self.assertEqual(app.details(codex, usage(), {}, NOW), "usage unavailable")
+
     def test_unknown_schema_and_unavailable(self):
         for data in [None, {}, {"schema_version": 2}]:
             self.assertEqual(app.details(pane(), data, {}, NOW), "usage unavailable")
