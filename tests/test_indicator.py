@@ -73,6 +73,39 @@ class UsageTests(unittest.TestCase):
         current["limits"] = limits
         self.assertEqual(app.details(p, data, {}, NOW), "h 7 % / w 55 % / ctx 14 %")
 
+    def test_foreign_model_in_claude_does_not_imply_token_billing(self):
+        for provider in ("openai", "moonshot"):
+            data = usage()
+            data["panes"][0]["session_key"] = "claude:session-a"
+            session = data["sessions"][0]
+            session["key"] = "claude:session-a"
+            session["current"].update(provider=provider, limits=[], session_estimated_cost_usd=99)
+            self.assertEqual(app.details(pane(agent="claude"), data, {}, NOW),
+                             "h -- / w -- / ctx 14 %")
+
+    def test_configured_subscription_keeps_quota_on_fetch_failure(self):
+        data = usage()
+        current = data["sessions"][0]["current"]
+        current.update(billing_mode="subscription", limits=[], session_estimated_cost_usd=99,
+                       quota_status="fetch_failed")
+        self.assertNotIn("$", app.details(pane(), data, {}, NOW))
+        self.assertIn("h -- / w --", app.details(pane(), data, {}, NOW))
+        self.assertIn("quota fetch failed", app.details(pane(), data, {}, NOW))
+
+    def test_openai_weekly_only_in_claude_takes_precedence_over_native_cost(self):
+        data = usage()
+        data["panes"][0]["session_key"] = "claude:session-a"
+        session = data["sessions"][0]
+        session["key"] = "claude:session-a"
+        session["current"].update(provider="openai", billing_mode="subscription",
+            session_estimated_cost_usd=99, limits=[{
+                "name": "primary", "used_percent": 33, "window_minutes": 10080, "resets_at": NOW + 300}])
+        self.assertEqual(app.details(pane(agent="claude"), data, {}, NOW),
+                         "h -- / w 33 % / ctx 14 %")
+        tokens = app.detail_tokens(app.detail_parts(pane(agent="claude"), data, {}, NOW))
+        self.assertEqual(tokens["si_w_normal"], "w 33 %")
+        self.assertIsNone(tokens["si_usage"])
+
     def test_auto_is_an_explicit_spending_fallback(self):
         data = usage()
         config = {"mode": "auto"}
