@@ -80,9 +80,16 @@ def quota_label(window):
     return clean(name) or "quota"
 
 
-def token_billed(session, current):
-    """Claude reports rate limits only for subscribers, after the first response;
-    a session with its own cost estimate and no quota sample pays per token."""
+def session_cost_fallback(session, current):
+    """Keep the legacy Claude list-price fallback, not a billing classification.
+
+    A foreign provider or an explicitly configured subscription can lack native
+    Claude rate_limits. Its local cost estimate is not evidence of token billing.
+    """
+    if current.get("billing_mode") == "subscription":
+        return False
+    if current.get("provider") not in (None, "anthropic"):
+        return False
     try:
         cost = Decimal(str(current.get("session_estimated_cost_usd")))
     except InvalidOperation:
@@ -143,7 +150,7 @@ def detail_parts(pane, snapshot, config, now):
         "transcript_error": "transcript read error",
     }.get(collection, "usage " + clean(collection or "unavailable"))
     note_shown = False
-    if mode == "quota" and token_billed(session, current):
+    if mode == "quota" and session_cost_fallback(session, current):
         parts.append(("usage", money(current["session_estimated_cost_usd"]), None))
     elif mode == "quota" or (mode == "auto" and limits):
         windows = {quota_label(w): w for w in limits if isinstance(w, dict)}
@@ -191,6 +198,11 @@ def detail_parts(pane, snapshot, config, now):
     if context or mode == "quota":
         value = context.get("used_percent")
         parts.append(("ctx", "ctx " + percent(value), value))
+    if mode == "quota" or (mode == "auto" and limits):
+        quota_note = {"fetch_failed": "quota fetch failed", "credential_missing": "quota credentials missing",
+                      "credential_expired": "quota credentials expired"}.get(current.get("quota_status"))
+        if quota_note:
+            parts.append(("notes", quota_note, None))
     if collection != "ok" and not note_shown:
         parts.append(("notes", collection_note, None))
     return parts + suffix
