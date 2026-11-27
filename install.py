@@ -58,7 +58,8 @@ def sidebar(extensions=None):
         try:
             ext = tomllib.loads(path.read_text())
             rows_before, tokens, rows_after = ext.get("before", []), ext.get("line1", []), ext.get("after", [])
-            if not all(isinstance(r, list) for r in rows_before + rows_after) or not isinstance(tokens, list):
+            if not all(isinstance(v, list) for v in (rows_before, tokens, rows_after)) \
+                    or not all(isinstance(r, list) for r in rows_before + rows_after):
                 raise ValueError("before/after are lists of rows, line1 a list of tokens")
         except (OSError, ValueError) as error:
             raise ValueError(f"sidebar extension {path}: {error}") from None
@@ -82,7 +83,10 @@ def toml_value(value):
     if isinstance(value, (int, float)):
         return str(value)
     if isinstance(value, str):
-        return json.dumps(value)
+        # A TOML basic string in UTF-8: JSON's \uXXXX surrogate pairs (any emoji) aren't valid TOML.
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        escaped = re.sub(r"[\x00-\x1f\x7f]", lambda m: f"\\u{ord(m.group()):04x}", escaped)
+        return '"' + escaped + '"'
     if isinstance(value, list):
         return "[" + ", ".join(toml_value(v) for v in value) + "]"
     if isinstance(value, dict):

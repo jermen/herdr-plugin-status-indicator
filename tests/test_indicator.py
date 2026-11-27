@@ -508,10 +508,19 @@ class InstallTests(unittest.TestCase):
             self.assertEqual(install.candidate(once, extensions=folder), install.candidate('[ui]\nsidebar_width = 55\n'))
 
     def test_broken_sidebar_extension_is_refused_by_name(self):
+        for text in ("line1 = 3\n", "before = 3\n", "after = \"row\"\n", "before = [3]\n"):
+            with tempfile.TemporaryDirectory() as directory:
+                (Path(directory) / "x.toml").write_text(text)
+                with self.assertRaisesRegex(ValueError, "x.toml"):
+                    install.sidebar(Path(directory))
+
+    def test_sidebar_extension_strings_round_trip(self):
+        values = ["📌", "❓ tab\tquote\" back\\slash", "plain"]
         with tempfile.TemporaryDirectory() as directory:
-            (Path(directory) / "x.toml").write_text("line1 = 3\n")
-            with self.assertRaisesRegex(ValueError, "x.toml"):
-                install.sidebar(Path(directory))
+            (Path(directory) / "e.toml").write_text(
+                "line1 = [" + ", ".join(install.toml_value(v) for v in values) + "]\n", encoding="utf-8")
+            rows = tomllib.loads(install.sidebar(Path(directory)))["ui"]["sidebar"]["agents"]["rows"]
+            self.assertEqual(rows[0][-3:], values)
 
 
 class SocketTests(unittest.TestCase):
