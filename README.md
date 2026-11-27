@@ -201,6 +201,24 @@ the plugin's `si_*` tokens; only changed values are published, in batches within
 Herdr's 16-token request limit. Unchanged frames are not rewritten.
 Collector snapshots are re-read only when their file changes.
 
+## Other plugins on the same rows
+
+Herdr allows one `[ui.sidebar.agents]` table, and this plugin's managed block owns it. A plugin
+that wants its own tokens on agent rows doesn't replace that block. It drops a TOML file into
+`sidebar.d/` in this plugin's config directory (`herdr plugin config-dir jermen.status-indicator`)
+and reruns `install.py --client --apply`:
+
+```toml
+# sidebar.d/example.toml
+before = [[{ token = "$ex_head", bold = true }]]    # rows above the two rows
+line1 = [{ token = "$ex_badge", fg = "#c04a4a" }]   # tokens appended to the first row
+after = [["$ex_note"]]                               # rows below
+```
+
+Files apply in name order, and the block lists them in an `# extensions:` comment. Every install
+(this plugin's or the other plugin's) rebuilds the block from the files present, so updating
+either plugin keeps both. Removing a file and reinstalling takes its rows out.
+
 ## Subagents
 
 Herdr protocol 22 and the usage schema do not expose native internal subagent

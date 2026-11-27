@@ -34,12 +34,71 @@ def remove_block(text, start, end):
     return result
 
 
-def sidebar():
-    # One source for the local installer and a separately configured SSH client.
-    return (ROOT / "client-sidebar.toml").read_text()
+def sidebar(extensions=None):
+    """The managed sidebar block, with other plugins' extensions merged in.
+
+    One source for the local installer and a separately configured SSH client. Herdr allows one
+    [ui.sidebar.agents] table, so a plugin that wants its tokens on agent rows drops a TOML file
+    into `extensions` (sidebar.d/ in this plugin's config directory) instead of owning the table:
+
+        before = [[{ token = "$x_head", bold = true }]]   # rows above ours
+        line1 = [{ token = "$x_badge", fg = "#c04a4a" }]  # tokens appended to our first row
+        after = [["$x_note"]]                              # rows below ours
+
+    Files apply in name order. Reinstalling picks up added, changed or removed files.
+    """
+    block = (ROOT / "client-sidebar.toml").read_text()
+    files = sorted(Path(extensions).glob("*.toml")) if extensions else []
+    if not files:
+        return block
+    match = re.search(r"(?ms)^rows = \[\n(.*?)\n\]\n", block)
+    first, rest = match.group(1).split("\n", 1)
+    before, line1, after = [], [], []
+    for path in files:
+        try:
+            ext = tomllib.loads(path.read_text())
+            rows_before, tokens, rows_after = ext.get("before", []), ext.get("line1", []), ext.get("after", [])
+            if not all(isinstance(v, list) for v in (rows_before, tokens, rows_after)) \
+                    or not all(isinstance(r, list) for r in rows_before + rows_after):
+                raise ValueError("before/after are lists of rows, line1 a list of tokens")
+        except (OSError, ValueError) as error:
+            raise ValueError(f"sidebar extension {path}: {error}") from None
+        before += [toml_value(r) for r in rows_before]
+        line1 += [toml_value(t) for t in tokens]
+        after += [toml_value(r) for r in rows_after]
+    if line1:
+        first = first.rstrip().rstrip(",")
+        first = first[:-1].rstrip() + ", " + ", ".join(line1) + "],"
+    rows = ["  " + r + "," for r in before] + [first, rest.rstrip().rstrip(",") + ("," if after else "")]
+    rows += ["  " + r + "," for r in after[:-1]] + (["  " + after[-1]] if after else [])
+    names = ", ".join(path.name for path in files)
+    return (block[:match.start()] + f"# extensions: {names}\nrows = [\n" + "\n".join(rows) + "\n]\n"
+            + block[match.end():])
 
 
-def candidate(text, replace_radar=False):
+def toml_value(value):
+    """Inline TOML for the values a sidebar row holds: strings, booleans, numbers, arrays, tables."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        # A TOML basic string in UTF-8: JSON's \uXXXX surrogate pairs (any emoji) aren't valid TOML.
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        escaped = re.sub(r"[\x00-\x1f\x7f]", lambda m: f"\\u{ord(m.group()):04x}", escaped)
+        return '"' + escaped + '"'
+    if isinstance(value, list):
+        return "[" + ", ".join(toml_value(v) for v in value) + "]"
+    if isinstance(value, dict):
+        return "{ " + ", ".join(f"{k} = {toml_value(v)}" for k, v in value.items()) + " }"
+    raise ValueError(f"unsupported value {value!r}")
+
+
+def extensions_dir(config):
+    return config.parent / "plugins/config" / PLUGIN / "sidebar.d"
+
+
+def candidate(text, replace_radar=False, extensions=None):
     tomllib.loads(text)
     text = remove_block(text, START, END)
     if RADAR_START in text:
@@ -50,7 +109,7 @@ def candidate(text, replace_radar=False):
     doc = tomllib.loads(text)
     if "agents" in doc.get("ui", {}).get("sidebar", {}):
         raise ValueError("user-owned ui.sidebar.agents table needs an explicit merge")
-    result = text.rstrip() + "\n\n" + sidebar()
+    result = text.rstrip() + "\n\n" + sidebar(extensions)
     tomllib.loads(result)
     return result
 
@@ -307,7 +366,7 @@ def main():
     if args.apply and not args.client and not path.is_file():
         raise ValueError("Herdr server config does not exist; start Herdr before installing")
     before = path.read_text() if path.exists() else ""
-    after = candidate(before, args.replace_radar)
+    after = candidate(before, args.replace_radar, extensions_dir(path))
     if args.apply:
         if args.client:
             apply_client(path, before, after)
