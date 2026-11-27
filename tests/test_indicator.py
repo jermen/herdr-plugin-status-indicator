@@ -488,6 +488,31 @@ class InstallTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             install.candidate(install.START + "\n")
 
+    def test_sidebar_extensions_merge_rows_and_first_line_tokens(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            self.assertEqual(install.sidebar(folder), install.sidebar())
+            (folder / "b.toml").write_text('before = [[{ token = "$b_head", bold = true }]]\n'
+                                           'line1 = [{ token = "$b_badge", fg = "#c04a4a" }]\nafter = [["$b_note"]]\n')
+            (folder / "a.toml").write_text('line1 = ["$a_badge"]\n')
+            base = tomllib.loads(install.sidebar())["ui"]["sidebar"]["agents"]["rows"]
+            once = install.candidate('[ui]\nsidebar_width = 55\n', extensions=folder)
+            rows = tomllib.loads(once)["ui"]["sidebar"]["agents"]["rows"]
+            self.assertEqual(rows, [[{"token": "$b_head", "bold": True}],
+                                    base[0] + ["$a_badge", {"token": "$b_badge", "fg": "#c04a4a"}],
+                                    *base[1:], ["$b_note"]])
+            self.assertEqual(install.candidate(once, extensions=folder), once)
+            # Removing a plugin's file and reinstalling takes its rows out again.
+            (folder / "a.toml").unlink()
+            (folder / "b.toml").unlink()
+            self.assertEqual(install.candidate(once, extensions=folder), install.candidate('[ui]\nsidebar_width = 55\n'))
+
+    def test_broken_sidebar_extension_is_refused_by_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "x.toml").write_text("line1 = 3\n")
+            with self.assertRaisesRegex(ValueError, "x.toml"):
+                install.sidebar(Path(directory))
+
 
 class SocketTests(unittest.TestCase):
     def test_real_socket_round_trip_and_metadata_contract(self):
